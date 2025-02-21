@@ -1,8 +1,6 @@
-import { LightHouseResults, LightHouseWDIO, PluginConfiguration, windowSizeDesktop } from "../../src/index";
+import { LightHouseWDIO, PluginConfiguration, windowSizeDesktop } from "../../src/index";
 import { LogLevel, log } from "../../src/log";
 import type { Context } from "mocha";
-import { createTestId } from "../../src/lib";
-import { expect } from "expect-webdriverio";
 
 describe("LightHouseWDIO Shared", () => {
   const describeName = "LightHouseWDIO Shared";
@@ -11,8 +9,7 @@ describe("LightHouseWDIO Shared", () => {
   // Save the pages off as we go since the "after()" clears the maps
   const launchOptions: PluginConfiguration = {
     resultsDirectory: process.env.RESULTS_PATH || "lighthouse-results",
-    windowSize: windowSizeDesktop,
-    userAgent: "Lighthouse Plugin Config"
+    windowSize: windowSizeDesktop
   };
 
   before (async () => {

@@ -1,28 +1,3 @@
-// import {
-//   BrowserUrlOptions,
-//   ClickOptionsPage,
-//   ClickOptionsTimer,
-//   EmulateNetworkParameters,
-//   MobileType,
-//   PerformancePlugin,
-//   PluginConfiguration,
-//   PluginDefaults,
-//   TagHelper,
-//   Tags,
-//   TestErrorSeverity,
-//   createEmulateNetworkParameters,
-//   createResultsFilename,
-//   createTestId,
-//   getEnvironmentConfiguration,
-//   getLocalIpAddress,
-//   getSessionId,
-//   lib,
-//   puppeteerHelper,
-//   setSessionId,
-//   setUserAgentOverride,
-//   testhelper,
-//   throttle
-// } from "@fs/active-monitoring-wdiohelper";
 import type { Config, Puppeteer, UserFlow, startFlow as startFlowFunction } from "lighthouse";
 import { startFlow } from "lighthouse";
 import {
@@ -35,17 +10,14 @@ import {
   PluginConfiguration,
   PluginDefaults,
   SCREEN_EMULATION_SETTINGS,
-  THROTTLING_EMULATION_SETTINGS,
   Tags,
   TestErrorSeverity
 } from "../types";
 import { LogLevel, consoleLog, log } from "./log";
-import { createMainDirectory, getTimeStamp } from "./lib";
 import type { Context } from "mocha";
 import type { Frameworks } from "@wdio/types";
 import { join as pathJoin } from "path";
-import { writeFile } from "fs/promises";
-import { setUserAgentOverride } from "./testhelper";
+import { mkdir, writeFile } from "fs/promises";
 import { getPuppeteerPage } from "./puppeteer";
 
 interface TimerObject {
@@ -66,59 +38,20 @@ interface TimerObject {
   simLocation?: string | undefined;
 }
 
+export async function createMainDirectory (mainDirName: string): Promise<void> {
+  // Check to see if we have results directory, if we dont, create it
+  await mkdir(mainDirName)
+  .catch((error) => {
+    if (error.code !== "EEXIST") {
+      throw error;
+    }
+  });
+}
+
 // Define a mapped type to ensure properties have compatible types
 type MappedTimerObject = {
   [K in keyof TimerObject]?: TimerObject[K] extends undefined ? undefined : number | string;
 };
-
-/**
- * Converts the Wdio-Helper Throttling to Lighthouse Throttling
- * @param networkParameters {EmulateNetworkParameters}
- * @returns {LightHouseScreenThrottling}
- */
-// export function createLightHouseThrottling (
-//   networkParameters: EmulateNetworkParameters | undefined,
-//   mobileType: MobileType | undefined
-// ): LightHouseScreenThrottling {
-//   const lighthouseThrottling: LightHouseScreenThrottling =  {
-//     ...(mobileType !== undefined
-//       ? MOBILE_REGULAR_3G
-//       : DESKTOP_NO_THROTTLING)
-//   };
-//   if (networkParameters) {
-//     if (networkParameters.preset) { lighthouseThrottling.name = networkParameters.preset; }
-//     if (networkParameters.latency) {
-//       lighthouseThrottling.rttMs = networkParameters.latency;
-//       lighthouseThrottling.requestLatencyMs = networkParameters.latency * DEVTOOLS_RTT_ADJUSTMENT_FACTOR;
-//     }
-//     let throughput = -1;
-//     let uploadThroughput = -1;
-//     let downloadThroughput = -1;
-//     if (networkParameters.bandwidthMbps !== undefined) {
-//       throughput = uploadThroughput = downloadThroughput = networkParameters.bandwidthMbps;
-//     }
-//     if (networkParameters.downloadThroughputMbps) {
-//       downloadThroughput = networkParameters.downloadThroughputMbps;
-//       if (!networkParameters.uploadThroughputMbps) {
-//         uploadThroughput = networkParameters.downloadThroughputMbps;
-//       }
-//       if (!networkParameters.bandwidthMbps) {
-//         throughput = networkParameters.downloadThroughputMbps;
-//       }
-//     }
-//     if (networkParameters.uploadThroughputMbps) {
-//       uploadThroughput = networkParameters.uploadThroughputMbps;
-//     }
-//     lighthouseThrottling.throughputKbps = throughput * 1024;
-//     lighthouseThrottling.downloadThroughputKbps = downloadThroughput * 1024 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR;
-//     lighthouseThrottling.uploadThroughputKbps = uploadThroughput * 1024 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR;
-//     if (networkParameters?.cpuSlowdownMultiplier) {
-//       lighthouseThrottling.cpuSlowdownMultiplier = networkParameters?.cpuSlowdownMultiplier;
-//     }
-//   }
-//   log("createLightHouseThrottling", LogLevel.DEBUG, { networkParameters, mobileType, lighthouseThrottling });
-//   return lighthouseThrottling;
-// }
 
 // Helper function to format the timer duration
 function formatTime (timerObject: TimerObject): MappedTimerObject {
@@ -210,9 +143,9 @@ export class LightHouseWDIO {
     } = launchOptions;
     this.lighthouseLaunchOptions = {
       formFactor: FormFactor.DESKTOP,
-      throttling:{ ...THROTTLING_EMULATION_SETTINGS.DESKTOP_NO_THROTTLING },
+      throttling:{ ...DESKTOP_NO_THROTTLING },
       screenEmulation: { ...SCREEN_EMULATION_SETTINGS.desktop },
-      emulatedUserAgent: launchOptions.userAgent,
+      // emulatedUserAgent: launchOptions.userAgent,
       timeout: DEFAULT_LIGHTHOUSE_TEST_TIMEOUT
     };
     if (launchOptions.windowSize) {
@@ -252,25 +185,6 @@ export class LightHouseWDIO {
       this.overwriteCommandRun = true;
     }
     if (this.browser && !this.browserInitialized) {
-      if (typeof this.launchOptions.userAgent === "string") {
-        log("init setUserAgentOverride: " + this.launchOptions.userAgent, LogLevel.DEBUG, this.launchOptions);
-        // A full browser user agent will be Mozilla/<version> (OS info) <Extra info>
-        let insertString: string | undefined;
-        let userAgent: string | undefined;
-        // Check if it's a full user-agent with Mozilla/X.0 at the start
-        if (/^Mozilla\/\d+\.\d+/i.test(this.launchOptions.userAgent)) {
-          userAgent = this.launchOptions.userAgent;
-        } else {
-          insertString = this.launchOptions.userAgent;
-        }
-        const newUserAgent = await setUserAgentOverride({ insertString, userAgent });
-        if (!newUserAgent || !newUserAgent.includes(this.launchOptions.userAgent)) {
-          log("init setUserAgentOverride failed: " + newUserAgent, LogLevel.WARN, { newUserAgent, launchOptions: this.launchOptions });
-        }
-        if (newUserAgent) {
-          this.globalTags.emulatedUserAgent = this.lighthouseLaunchOptions.emulatedUserAgent = newUserAgent;
-        }
-      }
       await this.browser.setWindowSize(this.lighthouseLaunchOptions.screenEmulation.width, this.lighthouseLaunchOptions.screenEmulation.height);
 
       // await this.browser.url( "about:blank" );
@@ -297,12 +211,6 @@ export class LightHouseWDIO {
         throw new Error("before() must be called prior beforeTest()");
       }
       await this.browserInitialize();
-      // Update the tags
-      // Set reload based on Title (but can be overridden with tags)
-      const reload: boolean | null = tags.reload === null || typeof tags.reload === "boolean"
-        ? tags.reload
-        : (typeof tags.title === "string" && tags.title.endsWith(" Reload"));
-      log("beforeTest reload", LogLevel.DEBUG, { tags, reload });
     } catch (error: unknown) {
       log("LightHouseWDIO beforeTest() error", LogLevel.ERROR, error);
       throw error;
@@ -578,7 +486,7 @@ export class LightHouseWDIO {
     const pageTags = this.pageTags = {
       ...this.globalTags,
       ...(this.nextPageTags || {}),
-      ts: getTimeStamp(),
+      // ts: getTimeStamp(),
       url: path
     };
     this.nextPageTags = undefined;

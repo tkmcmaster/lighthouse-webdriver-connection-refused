@@ -14,36 +14,6 @@ export const windowSizeTablet: WindowSize = { width: 1280, height: 800 };
  export const DEVTOOLS_RTT_ADJUSTMENT_FACTOR = 3.75;
  export const DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR = 0.9;
 
- export const MOBILE_REGULAR_3G: LightHouseScreenThrottling = {
-   name: "MOBILE_REGULAR_3G",
-   rttMs: 300,
-   throughputKbps: 700,
-   requestLatencyMs: 300 * DEVTOOLS_RTT_ADJUSTMENT_FACTOR,
-   downloadThroughputKbps: 700 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR,
-   uploadThroughputKbps: 700 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR,
-   cpuSlowdownMultiplier: 4
- };
-
- export const MOBILE_SLOW_4G: LightHouseScreenThrottling =  {
-   name: "MOBILE_SLOW_4G",
-   rttMs: 150,
-   throughputKbps: 1.6 * 1024,
-   requestLatencyMs: 150 * DEVTOOLS_RTT_ADJUSTMENT_FACTOR,
-   downloadThroughputKbps: 1.6 * 1024 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR,
-   uploadThroughputKbps: 750 * DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR,
-   cpuSlowdownMultiplier: 4
- };
-
- export const DESKTOP_DENSE_4G: LightHouseScreenThrottling =  {
-   name: "DESKTOP_DENSE_4G",
-   rttMs: 40,
-   throughputKbps: 10 * 1024,
-   cpuSlowdownMultiplier: 1,
-   requestLatencyMs: 0,
-   downloadThroughputKbps: 0,
-   uploadThroughputKbps: 0
- };
-
  export const DESKTOP_NO_THROTTLING: LightHouseScreenThrottling =  {
   name: "DESKTOP_NO_THROTTLING",
   rttMs: 0,
@@ -76,11 +46,4 @@ export const DESKTOP_EMULATION_METRICS: LightHouseScreenEmulation = {
 export const SCREEN_EMULATION_SETTINGS = {
   mobile: MOBILE_EMULATION_METRICS,
   desktop: DESKTOP_EMULATION_METRICS
-};
-
-export const THROTTLING_EMULATION_SETTINGS = {
-  MOBILE_REGULAR_3G,
-  MOBILE_SLOW_4G,
-  DESKTOP_DENSE_4G,
-  DESKTOP_NO_THROTTLING
 };
