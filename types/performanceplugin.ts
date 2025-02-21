@@ -6,15 +6,6 @@ export interface PluginConfiguration {
   resultsDirectory?: string;
   /** Set the size of the Chrome Window */
   windowSize?: WindowSize;
-  // /** String to inject into the default user agent */
-  // userAgent?: string | boolean;
-}
-
-export enum TestErrorSeverity {
-  ERROR = "ERROR",
-  WARN = "WARN",
-  INFO = "INFO",
-  DEBUG = "DEBUG"
 }
 
 export type Tags = Record<string, unknown>;

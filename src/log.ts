@@ -16,20 +16,6 @@ export enum LogLevel {
  * @param datas (...any[]) Optional objects to log including a single error
  */
 export function log (message: string, level: LogLevel = LogLevel.INFO, ...datas: any[]) {
-  internalLog(message, level, ...datas);
-}
-
-/**
- * Takes a variable list of data and logs to console based on process.env.LoggingLevelConsole
- * @param message (String) primary message to log
- * @param level (LogLevel) default: INFO. The level to log this message at
- * @param datas (...any[]) Optional objects to log including a single error
- */
-export function consoleLog (message: string, level: LogLevel = LogLevel.INFO, ...datas: any[]) {
-  internalLog(message, level, ...datas);
-}
-
-function internalLog (message: string, level: LogLevel = LogLevel.INFO, ...datas: any[]) {
   const fullMessage: any = {
     message
   };
@@ -134,19 +120,3 @@ function internalLog (message: string, level: LogLevel = LogLevel.INFO, ...datas
       break;
   }
 }
-
-export const logErrorWithMessage = (message: string, tags?: any) =>
-  (e: any) => {
-    const title = tags && {
-      environment: tags.environment,
-      testId: tags.testId,
-      simLocation: tags.simLocation,
-      name: tags.name,
-      reload: tags.reload
-    };
-    log(message, LogLevel.ERROR, e, title);
-  };
-
-export const logError = (error: any, tags?: any) => {
-  logErrorWithMessage(error instanceof Error ? error.message : `${error}`, tags)(error);
-};
