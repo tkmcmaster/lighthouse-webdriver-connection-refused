@@ -32,8 +32,6 @@ export class LightHouseWDIO {
   protected lighthouseResultFileName: string = "lighthouse-results-file";
   protected resultsDir: string = "lighthouse-results";
   protected userFlow?: UserFlow;
-  public currentPage?: LightHouseResults;
-  protected currentTimer?: string; // Needs to be a string so we can save a snapshot when we end the timer
   public pages: LightHouseResults[] = [];
   protected windowSize: WindowSize;
   protected capabilities?: WebdriverIO.Capabilities;
@@ -127,13 +125,6 @@ export class LightHouseWDIO {
     const now = Date.now();
     const htmlFilename: string = pathJoin(this.resultsDir, `test-${now}.html`);
 
-    log("writeResults", LogLevel.DEBUG, {
-      ...lightHouseResult,
-      lighthouseComprehensiveResult: lighthouseComprehensiveResult !== undefined,
-      lighthouseJSONResult: lighthouseJSONResult !== undefined,
-      htmlFilename
-    });
-
     const fsWritePromises: Promise<void>[] = [];
     if (lighthouseJSONResult !== undefined) {
       try {
@@ -196,155 +187,7 @@ export class LightHouseWDIO {
   public async after (): Promise<void> {
     log("after called in class", LogLevel.DEBUG, { pagesLength: this.pages.length });
     // close off the old page/flow if there is one
-    await this.endUserFlow().catch(() => { /* no op, logs itself */ });
     log("after finished in class", LogLevel.DEBUG);
-  }
-
-  /** Creates a new this.userFlow if it's undefined.
-   * If one exists it does nothing since we need to generate a report before getting rid of the old one. */
-  protected async startUserFlow (currentPage: LightHouseResults): Promise<UserFlow> {
-    if (this.browser === undefined) {
-      log("Browser not initialized.", LogLevel.ERROR);
-      throw new Error("before() must be called prior runLighthouse()");
-    }
-    // close off the old page/flow and create a new one
-    await this.endUserFlow().catch(() => { /* no op, logs itself */ });
-
-    // Set Lighthouse emulation configurations - needs to be called "config"
-    const config: Config = {
-      extends: "lighthouse:default",
-      settings: {
-        formFactor: "desktop",
-        throttling: {
-          rttMs: 0,
-          throughputKbps: 0, // 1 * 1024 * 1024,
-          cpuSlowdownMultiplier: 1,
-          requestLatencyMs: 0,
-          downloadThroughputKbps: 0,
-          uploadThroughputKbps: 0
-        },
-        screenEmulation: {
-          width: this.windowSize.width,
-          height: this.windowSize.height,
-          mobile: false,
-          deviceScaleFactor: 1,
-          disabled: false
-        },
-        // emulatedUserAgent: this.lighthouseLaunchOptions.emulatedUserAgent,
-        networkQuietThresholdMs: 2000,
-        cpuQuietThresholdMs: 2000,
-        maxWaitForLoad: 270000 // 4.5 minutes
-      }
-    };
-
-    const page = (await getPuppeteerPage());
-
-    // Start Lighthouse flow
-    // BUG: https://github.com/GoogleChrome/lighthouse/issues/15044
-    // const { startFlow } = await import("lighthouse");
-    // const { startFlow }: { startFlow: typeof startFlowFunction } = await import("lighthouse/core/index.cjs");
-
-    this.currentPage = currentPage;
-    log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
-    this.userFlow = await startFlow(
-      page as unknown as Puppeteer.Page,
-      { config, name: `UserFlow Start`}
-    );
-    return this.userFlow!;
-  }
-
-  /**
-   * Checks if there's a current open click timer and ends it and creates a new snapshot
-   */
-  protected async endTimer (userFlow: UserFlow | undefined = this.userFlow): Promise<void> {
-    if (this.currentTimer) {
-      log("endTimer start", LogLevel.DEBUG, { currentTimer: typeof this.currentTimer, userFlow: typeof userFlow });
-      // endTimespan seems to take a while. Save it off local and then reset it so it's not blocking the next test
-      const currentTimer = this.currentTimer;
-      this.currentTimer = undefined;
-      try {
-        if (!userFlow) {
-          throw new Error("endTimer called without a userFlow");
-        }
-        log("endTimer endTimespan", LogLevel.DEBUG, { currentTimer: typeof currentTimer, userFlow: typeof userFlow });
-        await userFlow.endTimespan();
-        log("endTimer snapshot", LogLevel.DEBUG, { currentTimer: typeof currentTimer, userFlow: typeof userFlow });
-        // https://github.com/GoogleChrome/lighthouse/blob/main/docs/user-flows.md
-        await userFlow.snapshot({ name: currentTimer + " snapshot" });
-        log("endTimer snapshot finished", LogLevel.DEBUG, { currentTimer: typeof currentTimer, userFlow: typeof userFlow });
-      } catch (error) {
-        log("endTimer error", LogLevel.ERROR, error);
-      } finally {
-        log("endTimer finished", LogLevel.DEBUG, { currentTimer: typeof currentTimer, userFlow: typeof userFlow });
-      }
-    }
-  }
-
-  /**
-   * Checks if there's a current userFlow and closes it out and logs it to the currentPage
-   */
-  protected async endUserFlow (): Promise<void> {
-    log("endUserFlow start", LogLevel.DEBUG, { currentPage: typeof this.currentPage, userFlow: typeof this.userFlow });
-    if (!this.userFlow) {
-      if (this.currentPage) {
-        log("endUserFlow with no userFlow has currentPage", LogLevel.WARN);
-        this.currentPage = undefined;
-      }
-      if (this.currentTimer) {
-        log("endUserFlow with no userFlow has currentTimer", LogLevel.WARN);
-        this.currentTimer = undefined;
-      }
-      return;
-    }
-    // saving off the reports seems to take a while. Save it off local and then reset it so it's not blocking the next test
-    const userFlow = this.userFlow;
-    const currentPage = this.currentPage;
-    this.userFlow = undefined;
-    this.currentPage = undefined;
-    try {
-      if (!currentPage) {
-        throw new Error("endUserFlow called without a currentPage");
-      }
-      // If there's a timer we need to close of, close it off. We need to pass it in since we wipe out the member var
-      await this.endTimer(userFlow);
-      // Get the comprehensive flow report.
-      currentPage.lighthouseComprehensiveResult = await userFlow.generateReport();
-
-      // Create and get JSON result for Splunk.
-      currentPage.lighthouseJSONResult = await userFlow.createFlowResult();
-      log("lighthouseJSONResult", LogLevel.TRACE, currentPage.lighthouseJSONResult);
-    } catch (error) {
-      log("endUserFlow error", LogLevel.ERROR, error);
-    } finally {
-      const lighthouseComprehensiveResult: boolean = currentPage?.lighthouseComprehensiveResult !== undefined;
-      const lighthouseJSONResult: boolean = currentPage?.lighthouseJSONResult !== undefined;
-      if (currentPage?.lighthouseJSONResult) {
-        currentPage.lighthouseJSONResult.steps.forEach((step, stepIndex) => {
-          if (typeof step.lhr.categories.performance?.score !== "number") {
-            log(`Error: Score is null in step ${stepIndex}`, LogLevel.WARN);
-          }
-          if (step.lhr.runWarnings && Array.isArray(step.lhr.runWarnings)) {
-            step.lhr.runWarnings.forEach(runWarning => {
-              log(runWarning, LogLevel.WARN);
-            });
-          }
-        });
-      }
-      if (currentPage) {
-        try {
-          await this.writeResults(currentPage);
-        } catch (error) {
-          log("Failed to write result files", LogLevel.ERROR, error);
-        }
-      }
-      log(
-        "endUserFlow() finished",
-        lighthouseComprehensiveResult && lighthouseJSONResult ? LogLevel.DEBUG : LogLevel.WARN, {
-        ...currentPage,
-        lighthouseComprehensiveResult,
-        lighthouseJSONResult
-      });
-    }
   }
 
   /**
@@ -377,14 +220,69 @@ export class LightHouseWDIO {
     const lightHouseResult: LightHouseResults = {};
 
     try {
-      const flow: UserFlow = await this.startUserFlow(lightHouseResult);
+      // Set Lighthouse emulation configurations - needs to be called "config"
+      const config: Config = {
+        extends: "lighthouse:default",
+        settings: {
+          formFactor: "desktop",
+          throttling: {
+            rttMs: 0,
+            throughputKbps: 0, // 1 * 1024 * 1024,
+            cpuSlowdownMultiplier: 1,
+            requestLatencyMs: 0,
+            downloadThroughputKbps: 0,
+            uploadThroughputKbps: 0
+          },
+          screenEmulation: {
+            width: this.windowSize.width,
+            height: this.windowSize.height,
+            mobile: false,
+            deviceScaleFactor: 1,
+            disabled: false
+          },
+          // emulatedUserAgent: this.lighthouseLaunchOptions.emulatedUserAgent,
+          networkQuietThresholdMs: 2000,
+          cpuQuietThresholdMs: 2000,
+          maxWaitForLoad: 270000 // 4.5 minutes
+        }
+      };
 
-      await flow.navigate(path, {
+      const page = (await getPuppeteerPage());
+
+      // Start Lighthouse flow
+      // BUG: https://github.com/GoogleChrome/lighthouse/issues/15044
+      // const { startFlow } = await import("lighthouse");
+      // const { startFlow }: { startFlow: typeof startFlowFunction } = await import("lighthouse/core/index.cjs");
+
+      log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
+      const userFlow: UserFlow = this.userFlow = await startFlow(
+        page as unknown as Puppeteer.Page,
+        { config, name: `UserFlow Start`}
+      );
+
+      await userFlow.navigate(path, {
         name: `Cold Cache Navigation - ${path}`,
         // Always do this. We'll have a fresh browser for each test and want preload to be able to cache
         disableStorageReset: true
       });
       log(`Cold Cache Run Called`, LogLevel.DEBUG);
+      try {
+        // Get the comprehensive flow report.
+        lightHouseResult.lighthouseComprehensiveResult = await userFlow.generateReport();
+  
+        // Create and get JSON result for Splunk.
+        lightHouseResult.lighthouseJSONResult = await userFlow.createFlowResult();
+      } catch (error) {
+        log("endUserFlow error", LogLevel.ERROR, error);
+      } finally {
+        if (lightHouseResult) {
+          try {
+            await this.writeResults(lightHouseResult);
+          } catch (error) {
+            log("Failed to write result files", LogLevel.ERROR, error);
+          }
+        }
+      }
     } catch (error) {
       log(`Failed to runLighthouse() - ${error}`, LogLevel.ERROR, error);
       throw error;
