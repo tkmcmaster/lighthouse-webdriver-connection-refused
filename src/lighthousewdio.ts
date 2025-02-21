@@ -1,16 +1,11 @@
 import type { Config, Puppeteer, UserFlow, startFlow as startFlowFunction } from "lighthouse";
 import { startFlow } from "lighthouse";
 import {
-  DESKTOP_EMULATION_METRICS,
-  DESKTOP_NO_THROTTLING,
-  FormFactor,
   LightHouseResults,
-  LighthouseLaunchOptions,
-  PageTags,
   PluginConfiguration,
-  PluginDefaults,
-  SCREEN_EMULATION_SETTINGS,
-  Tags
+  Tags,
+  WindowSize,
+  windowSizeDesktop
 } from "../types";
 import { LogLevel, log } from "./log";
 import type { Context } from "mocha";
@@ -29,52 +24,23 @@ export async function createMainDirectory (mainDirName: string): Promise<void> {
   });
 }
 
-export const DEFAULT_LIGHTHOUSE_ASSERT_TIMEOUT: number = 60000;
-/* Lighthouse test run timeout in milliseconds */
-const DEFAULT_LIGHTHOUSE_TEST_TIMEOUT: number = 120000;
-
-// export const PLUGIN_DEFAULTS: PluginDefaults = testhelper.pluginDefaults;
-
 export class LightHouseWDIO {
   protected browser?: WebdriverIO.Browser;
-  protected contexts: Map<string, Context>;
   protected beforeCalled: boolean = false;
   protected browserInitialized: boolean = false;
   protected overwriteCommandRun: boolean = false;
-  protected globalTags: PageTags;
-  protected pageTags?: PageTags;
-  protected nextPageTags?: Tags;
-  protected lighthouseLaunchOptions: LighthouseLaunchOptions;
   protected lighthouseResultFileName: string = "lighthouse-results-file";
   protected resultsDir: string = "lighthouse-results";
   protected userFlow?: UserFlow;
   public currentPage?: LightHouseResults;
-  protected clickCounter: number = 0;
   protected currentTimer?: string; // Needs to be a string so we can save a snapshot when we end the timer
   public pages: LightHouseResults[] = [];
-  protected launchOptions: PluginConfiguration;
+  protected windowSize: WindowSize;
   protected capabilities?: WebdriverIO.Capabilities;
   protected config?: WebdriverIO.Config;
-  public readonly pluginDefaults: PluginDefaults = { waitTimeout: DEFAULT_LIGHTHOUSE_TEST_TIMEOUT, visuallyCompleteInterval: 2000, fullyLoadedInterval: 2000 };
-
-  // TODO: Do we need to set Tags and LaunchOptions if passed here or just set defaults?
-  // TODO: test to see if this works with parallel runs
   constructor () {
-    // by default we will be running home page in desktop with 4G, not authenticated in beta.
-    this.launchOptions = {};
-    this.lighthouseLaunchOptions = {
-      formFactor: FormFactor.DESKTOP,
-      throttling: { ...DESKTOP_NO_THROTTLING },
-      screenEmulation: { ...DESKTOP_EMULATION_METRICS }
-    };
-    this.globalTags = {
-      ts: 0,
-      environment: "unknown",
-      ...this.lighthouseLaunchOptions
-    };
-    this.contexts = new Map();
+    this.windowSize = windowSizeDesktop;
   }
-
   public getResultsDir (): string {
     return this.resultsDir;
   }
@@ -87,32 +53,21 @@ export class LightHouseWDIO {
     if (this.beforeCalled) {
       throw new Error("setup() must be called before the \"before\" method");
     }
-    this.launchOptions = launchOptions;
     // Even though the wdio.conf can have an array. We only get the ONE capability that is running
     this.capabilities = capabilities as WebdriverIO.Capabilities;
     this.config = config;
     const {
+      windowSize,
       resultsDirectory
     } = launchOptions;
-    this.lighthouseLaunchOptions = {
-      formFactor: FormFactor.DESKTOP,
-      throttling:{ ...DESKTOP_NO_THROTTLING },
-      screenEmulation: { ...SCREEN_EMULATION_SETTINGS.desktop },
-      // emulatedUserAgent: launchOptions.userAgent,
-      timeout: DEFAULT_LIGHTHOUSE_TEST_TIMEOUT
-    };
-    if (launchOptions.windowSize) {
-      this.lighthouseLaunchOptions.screenEmulation.width = launchOptions.windowSize.width;
-      this.lighthouseLaunchOptions.screenEmulation.height = launchOptions.windowSize.height;
+    if (windowSize) {
+      this.windowSize = windowSize;
+      log("windowSize", LogLevel.DEBUG, { windowSize });
     }
-    // If one was passed in, override the default environment variable
-    this.launchOptions = { ...launchOptions };
     if (resultsDirectory) {
       this.resultsDir = resultsDirectory;
       log("resultsDirectory", LogLevel.DEBUG, { resultsDirectory, resultsDir: this.resultsDir });
     }
-
-    Object.assign(this.globalTags, this.lighthouseLaunchOptions);
   }
 
   /**
@@ -136,7 +91,7 @@ export class LightHouseWDIO {
       this.overwriteCommandRun = true;
     }
     if (this.browser && !this.browserInitialized) {
-      await this.browser.setWindowSize(this.lighthouseLaunchOptions.screenEmulation.width, this.lighthouseLaunchOptions.screenEmulation.height);
+      await this.browser.setWindowSize(this.windowSize.width, this.windowSize.height);
 
       // await this.browser.url( "about:blank" );
       this.browserInitialized = true;
@@ -153,11 +108,7 @@ export class LightHouseWDIO {
       throw new Error("before() must be called prior beforeEach()");
     }
     try {
-      // If one was passed in, override the default environment variable
-      // Unique Id for this test
-      const mochaTestid = context.mochaTestid = "test";
-      this.contexts.set(mochaTestid, context);
-      log("beforeTest called in class", LogLevel.DEBUG, { mochaTestid, configUrl: this.config?.baseUrl, browserUrl: this.browser?.options.baseUrl });
+      log("beforeTest called in class", LogLevel.DEBUG, { configUrl: this.config?.baseUrl, browserUrl: this.browser?.options.baseUrl });
       if (this.browser === undefined) {
         throw new Error("before() must be called prior beforeTest()");
       }
@@ -223,14 +174,6 @@ export class LightHouseWDIO {
     const { title, parent } = tags;
     log("afterTest called in class", LogLevel.DEBUG, { mochaTestid, ...tags, pagesLength: this.pages.length });
 
-    for (const lightHouseResult of this.pages) {
-      const { pageTags } = lightHouseResult;
-      if (!pageTags.name) {
-        // If it has " Reload", remove it when adding to the page.tags.name
-        const pageName = title.replace(/\sReload$/, "");
-        pageTags.name = pageName;
-      }
-    }
     // TODO: Do we want some kind of skipException for tests that can't run because of a predecessor?
     // TODO: Check if the testInfo already has a passedMessage
     const message = `${parent} - ${title} ${result.passed ? "passed" : "failed"} in ${result.duration} ms`;
@@ -271,13 +214,26 @@ export class LightHouseWDIO {
     const config: Config = {
       extends: "lighthouse:default",
       settings: {
-        formFactor: this.lighthouseLaunchOptions.formFactor,
-        throttling: this.lighthouseLaunchOptions.throttling,
-        screenEmulation: this.lighthouseLaunchOptions.screenEmulation,
-        emulatedUserAgent: this.lighthouseLaunchOptions.emulatedUserAgent,
-        networkQuietThresholdMs: this.pluginDefaults.fullyLoadedInterval || 2000,
-        cpuQuietThresholdMs: this.pluginDefaults.fullyLoadedInterval || 2000,
-        maxWaitForLoad: this.lighthouseLaunchOptions.timeout || this.pluginDefaults.waitTimeout || 270000 // 4.5 minutes
+        formFactor: "desktop",
+        throttling: {
+          rttMs: 0,
+          throughputKbps: 0, // 1 * 1024 * 1024,
+          cpuSlowdownMultiplier: 1,
+          requestLatencyMs: 0,
+          downloadThroughputKbps: 0,
+          uploadThroughputKbps: 0
+        },
+        screenEmulation: {
+          width: this.windowSize.width,
+          height: this.windowSize.height,
+          mobile: false,
+          deviceScaleFactor: 1,
+          disabled: false
+        },
+        // emulatedUserAgent: this.lighthouseLaunchOptions.emulatedUserAgent,
+        networkQuietThresholdMs: 2000,
+        cpuQuietThresholdMs: 2000,
+        maxWaitForLoad: 270000 // 4.5 minutes
       }
     };
 
@@ -292,7 +248,7 @@ export class LightHouseWDIO {
     log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
     this.userFlow = await startFlow(
       page as unknown as Puppeteer.Page,
-      { config, name: `${this.pageTags?.name || this.pageTags?.title || this.globalTags.title || "Unknown"} - ${this.globalTags.environment}`}
+      { config, name: `UserFlow Start`}
     );
     return this.userFlow!;
   }
@@ -418,30 +374,19 @@ export class LightHouseWDIO {
       log("browser.runLighthouse new URL error", LogLevel.ERROR, error, { path, baseUrl: this.config?.baseUrl });
     }
 
-    const pageTags = this.pageTags = {
-      ...this.globalTags,
-      ...(this.nextPageTags || {}),
-      // ts: getTimeStamp(),
-      url: path
-    };
-    this.nextPageTags = undefined;
-
-
-    const lightHouseResult: LightHouseResults = {
-      pageTags
-    };
+    const lightHouseResult: LightHouseResults = {};
 
     try {
       const flow: UserFlow = await this.startUserFlow(lightHouseResult);
 
-      await flow.navigate(pageTags.url, {
-        name: `Cold Cache Navigation - ${pageTags.name || pageTags.url} - ${pageTags.environment}`,
+      await flow.navigate(path, {
+        name: `Cold Cache Navigation - ${path}`,
         // Always do this. We'll have a fresh browser for each test and want preload to be able to cache
         disableStorageReset: true
       });
       log(`Cold Cache Run Called`, LogLevel.DEBUG);
     } catch (error) {
-      log(`Failed to runLighthouse() - ${error}`, LogLevel.ERROR, error, pageTags);
+      log(`Failed to runLighthouse() - ${error}`, LogLevel.ERROR, error);
       throw error;
     } finally {
       this.pages.push(lightHouseResult);
