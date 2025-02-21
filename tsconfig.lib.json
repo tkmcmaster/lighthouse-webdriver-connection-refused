@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*.ts",
+    "types/**/*.ts",
+    "node_modules/lighthouse/types/**/*.d.ts",
+  ],
+  "exclude": ["node_modules", "build", "plugintest", "test", "integration"]
+}

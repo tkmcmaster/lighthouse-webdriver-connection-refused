@@ -1,0 +1,23 @@
+{
+  "name": "webdriverio-url-timeout",
+  "type": "module",
+  "dependencies": {
+    "lighthouse": "^12.0.0"
+  },
+  "devDependencies": {
+    "@wdio/cli": "^9.3.1",
+    "@wdio/lighthouse-service": "^9.9.3",
+    "@wdio/local-runner": "^9.3.1",
+    "@wdio/mocha-framework": "^9.2.8",
+    "@wdio/spec-reporter": "^9.2.14",
+    "devtools-protocol": ">=0.0.1222075",
+    "expect-webdriverio": "^5.0.0",
+    "puppeteer-core": "^22.11.0",
+    "typescript": "^5.0.0",
+    "webdriverio": "^9.2.14"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "wdio": "wdio run ./wdio.conf.ts"
+  }
+}
