@@ -1,5 +1,5 @@
 import type { Config, Puppeteer, UserFlow } from "lighthouse";
-import { startFlow } from "lighthouse";
+import lighthouse, { generateReport, navigation, startFlow } from "lighthouse";
 import {
   LightHouseResults,
   PluginConfiguration,
@@ -184,24 +184,31 @@ export class LightHouseWDIO {
       // const { startFlow } = await import("lighthouse");
       // const { startFlow }: { startFlow: typeof startFlowFunction } = await import("lighthouse/core/index.cjs");
 
-      log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
-      const userFlow: UserFlow = await startFlow(
-        page as unknown as Puppeteer.Page,
-        { config, name: `UserFlow Start`}
-      );
+      const result = await lighthouse(path, undefined, config, page);
+      // log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
+      // const userFlow: UserFlow = await startFlow(
+      //   page as unknown as Puppeteer.Page,
+      //   { config, name: `UserFlow Start`}
+      // );
 
-      await userFlow.navigate(path, {
-        name: `Cold Cache Navigation - ${path}`,
-        // Always do this. We'll have a fresh browser for each test and want preload to be able to cache
-        disableStorageReset: true
-      });
+      // await userFlow.navigate(path, {
+      //   name: `Cold Cache Navigation - ${path}`,
+      //   // Always do this. We'll have a fresh browser for each test and want preload to be able to cache
+      //   disableStorageReset: true
+      // });
       log(`Cold Cache Run Called`, LogLevel.DEBUG);
       try {
         // Get the comprehensive flow report.
-        lightHouseResult.lighthouseComprehensiveResult = await userFlow.generateReport();
-  
+        // lightHouseResult.lighthouseComprehensiveResult = await userFlow.generateReport();
+        if (result?.lhr) {
+          lightHouseResult.lighthouseComprehensiveResult = await generateReport(result.lhr, "html");
+        }
+
         // Create and get JSON result for Splunk.
-        lightHouseResult.lighthouseJSONResult = await userFlow.createFlowResult();
+        // lightHouseResult.lighthouseJSONResult = await userFlow.createFlowResult();
+        if (typeof result?.report === "string") {
+          lightHouseResult.lighthouseJSONResult = JSON.parse(result.report);
+        }
       } catch (error) {
         log("endUserFlow error", LogLevel.ERROR, error);
       } finally {

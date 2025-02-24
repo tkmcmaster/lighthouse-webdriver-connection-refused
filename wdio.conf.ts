@@ -80,7 +80,7 @@ export const config: WebdriverIO.Config = {
         browserName: 'chrome',
         "wdio:enforceWebDriverClassic": true,
         "goog:chromeOptions": {
-          binary: process.env.CHROME_PATH,
+          // binary: process.env.CHROME_PATH,
           prefs: {
             // disable chrome's password manager - https://github.com/angular/protractor/issues/4146
             "profile.password_manager_enabled": false,
@@ -89,9 +89,9 @@ export const config: WebdriverIO.Config = {
             "password_manager_enabled": false
           },
           // https://help.applitools.com/hc/en-us/articles/360007189411--Chrome-is-being-controlled-by-automated-test-software-notification
-          excludeSwitches: ["--enable-automation"],
+          excludeSwitches: ["enable-automation"],
           args: [
-            ...automationArgs,
+            // ...automationArgs,
             ...headlessArgs
           ]
         },
