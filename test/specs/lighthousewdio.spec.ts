@@ -1,15 +1,11 @@
-import { LightHouseWDIO, PluginConfiguration, windowSizeDesktop } from "../../src/index";
+import { LightHouseWDIO, PluginConfiguration } from "../../src/index";
 import { LogLevel, log } from "../../src/log";
 import type { Context } from "mocha";
 
 describe("LightHouseWDIO Shared", () => {
-  const describeName = "LightHouseWDIO Shared";
-  const getUniqueId = (): string | undefined => (this as any as Context)?.mochaTestid;
   const lighthouseWDIO: LightHouseWDIO = new LightHouseWDIO();
-  // Save the pages off as we go since the "after()" clears the maps
   const launchOptions: PluginConfiguration = {
     resultsDirectory: process.env.RESULTS_PATH || "lighthouse-results",
-    windowSize: windowSizeDesktop
   };
 
   before (async () => {
@@ -18,27 +14,10 @@ describe("LightHouseWDIO Shared", () => {
     await lighthouseWDIO.before(browser);
   });
 
-  after (async () => {
-    // Save the pages off since the "after()" will clear the map
-    await lighthouseWDIO.after();
-  });
-
-  let startTime: number;
   beforeEach(async () => {
-    counter++;
-    await lighthouseWDIO.beforeEach(this as any as Context, { title: "test" + counter, parent: describeName });
-    log("beforeEach mochaTestid: " + getUniqueId(), LogLevel.DEBUG);
-    startTime = Date.now();
+    await lighthouseWDIO.beforeEach(this as any as Context, { title: "test", parent: "LightHouseWDIO Shared" });
   });
 
-  let counter = 0;
-  afterEach(async () => {
-    await lighthouseWDIO.afterEach(
-      this as any as Context,
-      { passed: true, duration: Date.now() - startTime, retries: { attempts: 1, limit: 0 }, exception: "", status: "" },
-      { title: "test" + counter, parent: describeName }
-    );
-  });
 
   it("Should log single page", async () => {
     try {

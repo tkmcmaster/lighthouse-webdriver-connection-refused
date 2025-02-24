@@ -1,5 +1,5 @@
-import type { Capabilities, Frameworks } from "@wdio/types";
-import { basename, join } from "path";
+import type { Capabilities } from "@wdio/types";
+// import { basename, join } from "path";
 
 export const automationArgs: Capabilities.ChromeOptions["args"] = [
     "--disable-breakpad",
@@ -280,18 +280,18 @@ export const config: WebdriverIO.Config = {
      * @param {boolean} result.passed    true if test has passed, otherwise false
      * @param {Frameworks.TestRetries}  result.retries   information about spec related retries, e.g. `{ attempts: 0, limit: 0 }`
      */
-    afterTest: async ({ file, title, parent }: Frameworks.Test, _context: Mocha.Context, { error, result, duration, passed, retries }: Frameworks.TestResult) => {
-      const filename = basename(file, "spec.ts");
-      // https://stackoverflow.com/a/42210346 - Remove filename illegal characters
-      // const title = test.title?.replace(/[/\\?%*:|"<>]/g, "-");
-      // eslint-disable-next-line no-console
-      console.log("Test finished: " + filename, { title, parent, filename, file, error, result, duration, passed, retries });
-      const screenshot = join(process.env.RESULTS_PATH || "", `${filename}-${new Date().toISOString().replace(/[-:.Z]/g, "")}.png`);
-      // eslint-disable-next-line no-console
-      console.log("Test finished - Saving Screenshot: " + screenshot);
-      // eslint-disable-next-line no-console
-      await browser.saveScreenshot(screenshot).catch((error2) => console.error("Could not save screenshot " + screenshot, error2));
-    },
+    // afterTest: async ({ file, title, parent }: Frameworks.Test, _context: Mocha.Context, { error, result, duration, passed, retries }: Frameworks.TestResult) => {
+    //   const filename = basename(file, "spec.ts");
+    //   // https://stackoverflow.com/a/42210346 - Remove filename illegal characters
+    //   // const title = test.title?.replace(/[/\\?%*:|"<>]/g, "-");
+    //   // eslint-disable-next-line no-console
+    //   console.log("Test finished: " + filename, { title, parent, filename, file, error, result, duration, passed, retries });
+    //   const screenshot = join(process.env.RESULTS_PATH || "", `${filename}-${new Date().toISOString().replace(/[-:.Z]/g, "")}.png`);
+    //   // eslint-disable-next-line no-console
+    //   console.log("Test finished - Saving Screenshot: " + screenshot);
+    //   // eslint-disable-next-line no-console
+    //   await browser.saveScreenshot(screenshot).catch((error2) => console.error("Could not save screenshot " + screenshot, error2));
+    // },
   
 
     /**
