@@ -2,7 +2,7 @@
   "name": "webdriverio-url-timeout",
   "type": "module",
   "dependencies": {
-    "lighthouse": "^9.0.0"
+    "lighthouse": "^8.0.0"
   },
   "devDependencies": {
     "@wdio/cli": "^9.3.1",
