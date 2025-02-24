@@ -1,4 +1,4 @@
-import type { FlowResult } from "lighthouse";
+import type FlowResult from "lighthouse/types/lhr/flow";
 
 export enum FormFactor {
   PHONE = "mobile",
