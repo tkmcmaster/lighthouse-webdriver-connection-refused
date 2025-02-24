@@ -10,7 +10,6 @@ export enum LogLevel {
 
 /**
  * Takes a variable list of data and logs to the file and console based on
- * process.env.LoggingLevel and process.env.LoggingLevelConsole
  * @param message (String) primary message to log
  * @param level (LogLevel) default: INFO. The level to log this message at
  * @param datas (...any[]) Optional objects to log including a single error

@@ -1,5 +1,5 @@
-import type { CDPSession, Page } from "puppeteer-core";
 import { LogLevel, log } from "./log";
+import type { Page } from "puppeteer-core";
 
 // Export for testing
 export const HELPER_CDP_CLIENT = "_helperCdp";
@@ -20,21 +20,4 @@ export async function getPuppeteerPage (): Promise<Page> {
     throw new Error("Could not load the puppeeter page");
   }
   return page as unknown as Page;
-}
-
-/**
- * Creates a CDPSession for the first tab/page. Returns the existing one if it already exists
- * @returns A Chrome Developer Protocol session (CDPSession)
- */
-export async function getHelperCdpClient (): Promise<CDPSession> {
-  const page = await getPuppeteerPage();
-  // Create a shared one for the page. Don't create a new one on each call
-  if ((page as any)[HELPER_CDP_CLIENT] === undefined) {
-    const cdpSession = (page as any)[HELPER_CDP_CLIENT] = await page.createCDPSession();
-    await cdpSession.send("Network.enable");
-    log("Created createCDPSession for browser", LogLevel.DEBUG, { sessionId: browser.sessionId, cdpId: cdpSession.id() });
-  } else {
-    log("Using existing CDPSession for browser", LogLevel.TRACE, { sessionId: browser.sessionId, cdpId: (page as any)[HELPER_CDP_CLIENT]?.id() });
-  }
-  return (page as any)[HELPER_CDP_CLIENT];
 }
