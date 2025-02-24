@@ -1,0 +1,38 @@
+on:
+  pull_request:
+
+name: Pull Request Javascript
+jobs:
+  create-release:
+    name: Build project
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    # env:
+      # CHROME_PATH: google-chrome
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add Node.js toolchain ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - run: sudo apt-get install -y wget xvfb
+      - name: Install Chrome
+        run: |
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install ./google-chrome-stable_current_amd64.deb
+      - run: google-chrome --version
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm run build
+
+      - name: Run Integration Tests
+        run: xvfb-run --server-args="-screen 0 2048x1100x16" -a npm run wdio
