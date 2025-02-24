@@ -1,5 +1,5 @@
-import type { Config, Puppeteer, UserFlow } from "lighthouse";
-import { startFlow } from "lighthouse";
+// import type { Config, Puppeteer, UserFlow } from "lighthouse";
+import { startFlow } from "lighthouse/lighthouse-core/fraggle-rock/api.js";
 import {
   LightHouseResults,
   PluginConfiguration,
@@ -151,7 +151,7 @@ export class LightHouseWDIO {
 
     try {
       // Set Lighthouse emulation configurations - needs to be called "config"
-      const config: Config = {
+      const config = {
         extends: "lighthouse:default",
         settings: {
           formFactor: "desktop",
@@ -185,8 +185,8 @@ export class LightHouseWDIO {
       // const { startFlow }: { startFlow: typeof startFlowFunction } = await import("lighthouse/core/index.cjs");
 
       log("startUserFlow", LogLevel.INFO, { config, startFlow: typeof startFlow });
-      const userFlow: UserFlow = await startFlow(
-        page as unknown as Puppeteer.Page,
+      const userFlow = await startFlow(
+        page,
         { config, name: `UserFlow Start`}
       );
 
